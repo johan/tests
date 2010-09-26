@@ -1,0 +1,104 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>Document Visible?</title>
+<script>
+  function firstSeen(callback) {
+    // when either of these happened, we know we're visible:
+    var events = ['focus', 'mousemove', 'keyup', 'keydown'];
+
+    if (!firstSeen.registered) {
+      firstSeen.registered = {};
+      for (var i = 0; i < events.length; i++) {
+        window.addEventListener(events[i], seen, false);
+        firstSeen.registered[events[i]] = true;
+      }
+      firstSeen.unregistered = false;
+      //firstSeen.registered = true;
+    }
+
+    // (we may not have focus, even if we are frontmost)
+    if (document.hasFocus() || firstSeen.already) {
+      if (!firstSeen.already)
+        log('document.hasFocus (not an event, but a function we try first)');
+      firstSeen.already = firstSeen.already || 1;
+      callback();
+    }
+
+    function seen(e) {
+      log('window.' + e.type + ' event fired');
+      if (!firstSeen.unregistered && firstSeen.registered[e.type]) {
+        window.removeEventListener(e.type, seen, false);
+        firstSeen.registered[e.type] = false;
+        //for (var i = 0; i < events.length; i++)
+        //  window.removeEventListener(events[i], seen, false);
+        //firstSeen.unregistered = true;
+      }
+
+      firstSeen.already = true;
+      callback();
+    }
+  }
+
+  function time(n) {
+    return ('         '+n).slice(-10) +'ms ';
+  }
+
+  function show() {
+    if (!show.n) {
+      show.n = document.getElementById("log");
+      document.getElementsByTagName("button")[0].disabled = false;
+    }
+    while (out.length)
+      show.n.innerHTML += time(out.shift()) + out.shift() + '\n';
+  }
+
+  function log(msg) {
+    var ms = new Date - t0;
+    out.push(ms, msg);
+    if (show.n) show();
+    console.log(ms, msg);
+  }
+
+  function reload() {
+    function countdown() {
+      var msg = s > 0 ? 'Reloading page in '+ s +' second'+ (s==1?'':'s')
+              : s < 0 ? 'Reload started '+ -s +' second'+ (s==-1?'':'s') +'ago'
+                      : 'Reloading page -- hang on!';
+      button.innerHTML = msg;
+      if (!s--) location.reload();
+    }
+    var button = document.getElementsByTagName("button")[0];
+    if (button.disabled) return;
+    button.disabled = true;
+    var s = 5; countdown();
+    setInterval(countdown, 1000);
+  }
+
+  var t0 = +new Date, out = [];
+  firstSeen(function(){ 0 && log('firstSeen'); });
+  window.addEventListener('pageshow', show, true);
+  window.addEventListener('load', show, true);
+  setTimeout(show, 500);
+</script>
+  </head>
+  <body>
+    <h1>Document Visible?</h1>
+    <p>This page wants to find a way to detect whether it is in a visible
+       browser tab, by whichever means available. Are there better ways of
+       doing this than indirectly, by looking for events and properties
+       that would <span title="Chrome 6.0.472.63 mac reports a 0ms document.hasFocus() in a tab which doesn't">(* if implemented properly
+       by the browser)</span> require the page to also be visible?</p>
+    <p>To help testing things, this button gives you time to switch tabs,
+       focus other applications and the like and have this page reload,
+       so you can see whether any of the page hacks work:</p>
+    <button onclick="reload()">Reload this page in 5 seconds</button>
+    <p>A successful test should log an event immediately after a reload
+       (something near 0ms) if the tab is visible, and <i>not</i> log any
+       event if the tab was not visible at load time (but it <i>should</i>
+       log your return to the page, some few seconds later, when you peek
+       to see how it went).</p>
+    <p>Listing the first time events fire on this page:</p>
+    <pre id="log"></pre>
+  </body>
+</html>
